@@ -1,0 +1,36 @@
+CREATE DATABASE sales;
+USE sales;
+CREATE TABLE sales_data (
+    product_id INT PRIMARY KEY,
+    customer_id INT,
+    price DECIMAL(10, 2),
+    quantity INT,
+    timestamp DATE
+);
+SHOW TABLES;
+SELECT COUNT(*) FROM sales_data;
+
+#SCRIPT
+
+#!/bin/bash
+
+# Define database credentials
+DB_HOST="localhost"
+DB_USER="root"
+DB_PASS="yourpassword"
+DB_NAME="sales"
+
+# Export the sales_data table to sales_data.sql
+mysqldump --host=$DB_HOST --user=$DB_USER --password=$DB_PASS $DB_NAME sales_data > sales_data.sql
+
+echo "Data export completed. The file sales_data.sql has been created."
+
+#IN TERMINAL
+pwd
+ls
+touch datadump.sh
+chmod +x datadump.sh
+./datadump.sh
+
+
+
