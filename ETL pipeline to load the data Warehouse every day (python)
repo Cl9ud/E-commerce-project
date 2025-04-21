@@ -1,1 +1,117 @@
+import psycopg2
+import mysql.connector
+import pandas as pd
 
+# Datos de conexión para PostgreSQL
+dsn_hostname = '172.21.246.38'
+dsn_user = 'postgres'
+dsn_pwd = 'xGozlD1yUC3qyx2E30vwVho8'
+dsn_port = '5432'
+dsn_database = 'postgres'
+
+def get_last_rowid():
+    try:
+        # Establecer conexión con PostgreSQL
+        conn = psycopg2.connect(
+            database=dsn_database,
+            user=dsn_user,
+            password=dsn_pwd,
+            host=dsn_hostname,
+            port=dsn_port
+        )
+        cursor = conn.cursor()
+
+        # Ejecutar la consulta para obtener el último rowid
+        cursor.execute("SELECT MAX(rowid) FROM sales_data;")
+        result = cursor.fetchone()
+
+        # Cerrar conexión
+        cursor.close()
+        conn.close()
+
+        return result[0] if result[0] is not None else 0
+
+    except Exception as e:
+        print(f"❌ Error al obtener el último rowid: {e}")
+        return None
+
+# Función para obtener registros más recientes de MySQL
+def get_latest_records(last_rowid):
+    try:
+        # Datos de conexión a MySQL
+        conn = mysql.connector.connect(
+            host='localhost',
+            user='root',
+            password='password',  # Cambia esto si tu contraseña es diferente
+            database='sales'      # Asegúrate de que sea el nombre correcto de la base de datos
+        )
+
+        cursor = conn.cursor(dictionary=True)
+
+        # Consulta para obtener registros nuevos
+        query = "SELECT * FROM sales_data WHERE rowid > %s"
+        cursor.execute(query, (last_rowid,))
+        records = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return records
+
+    except mysql.connector.Error as err:
+        print(f"❌ Error al conectar con MySQL: {err}")
+        return []
+
+# Función para insertar registros en PostgreSQL
+def insert_records(records):
+    try:
+        # Conexión a PostgreSQL
+        conn = psycopg2.connect(
+            database=dsn_database,
+            user=dsn_user,
+            password=dsn_pwd,
+            host=dsn_hostname,
+            port=dsn_port
+        )
+        cursor = conn.cursor()
+
+        # Insertar registros en la tabla sales_data
+        insert_query = """
+            INSERT INTO sales_data (product_id, customer_id, price, quantity, timestamp)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        for record in records:
+            data = (
+                record['product_id'],
+                record['customer_id'],
+                record['price'],
+                record['quantity'],
+                record['timestamp']
+            )
+            cursor.execute(insert_query, data)
+
+        # Confirmar los cambios
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        print("✅ Registros insertados correctamente en 'sales_data'")
+
+    except Exception as e:
+        print(f"❌ Error al insertar los registros en PostgreSQL: {e}")
+
+# Función principal para sincronizar los datos entre MySQL y PostgreSQL
+def synchronize_data():
+    last_rowid = get_last_rowid()
+    print("Último rowid en PostgreSQL:", last_rowid)
+
+    records = get_latest_records(last_rowid)
+    if records:
+        print(f"📦 Registros nuevos desde MySQL: {len(records)}")
+        insert_records(records)
+    else:
+        print("❌ No se encontraron registros nuevos desde MySQL.")
+
+if __name__ == "__main__":
+    synchronize_data()
