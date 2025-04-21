@@ -3,6 +3,7 @@ from airflow import DAG
 from datetime import datetime, timedelta
 from airflow.operators.python import PythonOperator
 import os
+import tarfile
 
 default_args = {
     'owner': 'airflow',
@@ -57,4 +58,19 @@ transform_data_task = PythonOperator(
     dag=dag,
 )
 
-extract_data_task >> transform_data_task
+#Load_data
+def load_data():
+    source_file = '/home/project/airflow/dags/capstone/transformed_data.txt'
+    output_tar = '/home/project/airflow/dags/capstone/weblog.tar'
+    
+    with tarfile.open(output_tar, 'w') as tar:
+        tar.add(source_file, arcname='transformed_data.txt')
+
+load_data_task = PythonOperator(
+    task_id='load_data',
+    python_callable=load_data,
+    dag=dag,
+)
+
+
+extract_data_task >> transform_data_task >> load_data_task
