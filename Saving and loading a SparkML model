@@ -1,0 +1,74 @@
+# spark_model_training.py
+
+# Instalar paquetes necesarios
+# Ejecuta estas líneas solo si estás en un entorno donde pip esté disponible (por ejemplo, Jupyter o Colab)
+# !pip install pyspark
+# !pip install findspark
+
+# Iniciar findspark
+import findspark
+findspark.init()
+
+# Importar librerías de Spark
+from pyspark import SparkContext
+from pyspark.sql import SparkSession
+from pyspark.ml.feature import VectorAssembler
+from pyspark.ml.regression import LinearRegression, LinearRegressionModel
+
+# Crear SparkContext y SparkSession
+sc = SparkContext()
+spark = SparkSession.builder.appName("Saving and Loading a SparkML Model").getOrCreate()
+
+# Crear un DataFrame de ejemplo con altura (cm) y peso (kg)
+mydata = [[46,2.5],[51,3.4],[54,4.4],[57,5.1],[60,5.6],[61,6.1],[63,6.4]]
+columns = ["height", "weight"]
+mydf = spark.createDataFrame(mydata, columns)
+mydf.show()
+
+# Convertir columna de altura a vector de características
+assembler = VectorAssembler(inputCols=["height"], outputCol="features")
+data = assembler.transform(mydf).select('features','weight')
+data.show()
+
+# Crear y entrenar modelo de regresión lineal
+lr = LinearRegression(featuresCol='features', labelCol='weight', maxIter=100)
+lr.setRegParam(0.1)
+lrModel = lr.fit(data)
+
+# Guardar el modelo
+lrModel.save('infantheight2.model')
+
+# Cargar el modelo guardado
+model = LinearRegressionModel.load('infantheight2.model')
+
+# Función para predecir el peso de un bebé a partir de su altura
+def predict(height):
+    data = [[height, 0]]  # Peso ficticio como placeholder
+    columns = ["height", "weight"]
+    df = spark.createDataFrame(data, columns)
+    assembler = VectorAssembler(inputCols=["height"], outputCol="features")
+    transformed_df = assembler.transform(df).select('features', 'weight')
+    predictions = model.transform(transformed_df)
+    predictions.select('prediction').show()
+
+# Ejemplo de predicción: peso para altura de 70 cm
+predict(70)
+
+# Ejercicios prácticos
+
+# Guardar el modelo como babyweightprediction.model
+# lrModel.save('babyweightprediction.model')
+
+# Cargar el modelo babyweightprediction.model
+# model2 = LinearRegressionModel.load('babyweightprediction.model')
+
+# Predecir el peso de un bebé cuya altura es 50 cm
+# def predict_exercise(height):
+#     data = [[height, 0]]
+#     df = spark.createDataFrame(data, ["height", "weight"])
+#     assembler = VectorAssembler(inputCols=["height"], outputCol="features")
+#     transformed_df = assembler.transform(df).select('features', 'weight')
+#     predictions = model2.transform(transformed_df)
+#     predictions.select('prediction').show()
+#
+# predict_exercise(50)
